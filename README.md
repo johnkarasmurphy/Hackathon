@@ -48,7 +48,4 @@ Marketplace weather data ─► checks + baselines (Snowpark procedures, daily T
 - `data_detective/`: the project. See [`data_detective/README.md`](data_detective/README.md) for Snowflake objects and redeploy notes, and `data_detective/docs/mvp_summary.txt` for the MVP description.
   - `sql/data_detective_ddl.sql`: full DDL for the `DATA_DETECTIVE` database
   - `streamlit_app/`: Streamlit in Snowflake app source
-- `cortex_project/`: Cortex project (to be added)
-- `convert.py`: converts NOAA VIIRS NDVI `.nc` files in `2026/` to CSV in `2026_csv/`, keeping only valid pixels
 
-The NDVI data in `2026/` is not tracked. Download it from https://www.ncei.noaa.gov/data/land-normalized-difference-vegetation-index/access/2026/

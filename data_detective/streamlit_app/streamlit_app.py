@@ -118,6 +118,48 @@ def render_report(inv_id: str):
     md += ["", "## Recommended actions"] + [f"- [{a.get('priority')}] {a.get('action')}" for a in rep.get("recommended_actions") or []]
     st.download_button("Download report (Markdown)", "\n".join(md), file_name=f"data_detective_{inv_id[:8]}.md")
 
+    render_feedback(inv_id)
+
+
+FEEDBACK_TABLE = "DATA_DETECTIVE.CORE.DATA_DETECTIVE_FEEDBACK"  # always CORE, for both environments
+
+
+def _viewer():
+    try:
+        u = getattr(st, "user", None) or getattr(st, "experimental_user", None)
+        return (u.get("user_name") or u.get("email")) if u else None
+    except Exception:
+        return None
+
+
+def render_feedback(inv_id: str):
+    """Collect free-text feedback on a report and log it with full report context."""
+    st.divider()
+    st.markdown("#### 💬 Did Data Detective help find this issue?")
+    st.caption("Your answer is logged for continued learning of the data ecosystem.")
+    with st.form(key=f"feedback_{inv_id}", clear_on_submit=True):
+        helpful = st.radio("Helpful?", ["Yes", "Partially", "No"], horizontal=True)
+        text = st.text_area("Your feedback", placeholder="e.g. Correct root cause; the upstream team confirmed a feed "
+                            "change. Also check station X, it's known to be noisy in winter…", max_chars=4000)
+        submitted = st.form_submit_button("Submit feedback", type="primary")
+    if submitted:
+        if not text.strip():
+            st.warning("Please enter some feedback before submitting.")
+            return
+        session.sql(f"""
+            INSERT INTO {FEEDBACK_TABLE}
+              (app_user, session_user, session_role, environment, investigation_id, result_id, dataset_id,
+               check_type, metric, obs_date, finding_summary, finding_details, model, n_steps, verdict,
+               report_title, report, helpful, feedback_text)
+            SELECT ?, CURRENT_USER(), CURRENT_ROLE(), ?, i.investigation_id, i.result_id, i.dataset_id,
+                   r.check_type, r.metric, r.obs_date, r.summary, r.details, i.model, i.n_steps,
+                   i.report:verdict::STRING, i.report:title::STRING, i.report, ?, ?
+            FROM {CORE}.INVESTIGATIONS i
+            LEFT JOIN {CORE}.CHECK_RESULTS r ON r.result_id = i.result_id
+            WHERE i.investigation_id = ?""",
+            [_viewer(), CORE.split(".")[-1], helpful, text.strip(), inv_id]).collect()
+        st.success("Thanks! Your feedback was logged.")
+
 
 # ---------------- Sidebar ----------------
 st.sidebar.title("🕵️ Data Detective")
